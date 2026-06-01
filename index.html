@@ -387,13 +387,13 @@
           <button class="unit-btn" onclick="setUnit('cups', this)">CUPS</button>
         </div>
       </div>
-      <div class="section-label">DAILY TARGET — 2,110 KCAL · 175G PROTEIN · 6 MEALS</div>
+      <div class="section-label">DAILY TARGET — ~1,900 KCAL · 175G PROTEIN · 6 MEALS</div>
       <div id="meals-list"></div>
       <div class="section-label" style="margin-top:20px">REFEED DAY</div>
       <div class="item" style="opacity:0.6; cursor:default;">
         <div class="item-body">
           <div class="item-name">Add ~300 kcal in carbs only on heaviest lift day</div>
-          <div class="item-sub">Bump to 2,400 kcal · Keep protein the same</div>
+          <div class="item-sub">Bump to ~2,200 kcal (maintenance) · Keep protein the same</div>
         </div>
       </div>
       <button class="reset-btn" onclick="resetSection('meals')">↺ RESET TODAY'S MEALS</button>
@@ -470,7 +470,7 @@ const MEAL_FOODS = [
   // Meal 2 — Pre-Workout
   [
     { name: 'Chicken breast (cooked)', oz: 6, isDry: false, note: '170g' },
-    { name: 'White rice (cooked)', oz: 5.3, isDry: false, note: '¾ cup / 150g' },
+    { name: 'White rice (cooked)', oz: 3.5, isDry: false, note: '½ cup / 100g' },
     { name: 'Broccoli florets', oz: 3, isDry: false, note: '½ cup / 85g' },
     { name: 'Hot sauce / salsa', oz: null, isDry: false, note: 'to taste' },
   ],
@@ -485,10 +485,9 @@ const MEAL_FOODS = [
   // Meal 4 — Dinner
   [
     { name: 'Ground turkey or tilapia', oz: 6, isDry: false, note: '170g' },
-    { name: 'Sweet potato (cooked)', oz: 5.3, isDry: false, note: '1 cup / ~150g' },
+    { name: 'Sweet potato (cooked)', oz: 4, isDry: false, note: '¾ cup / ~113g' },
     { name: 'Baby spinach', oz: 2, isDry: false, note: '2 cups / ~57g' },
     { name: 'Olive oil', oz: 0.5, isDry: false, note: '1 tbsp / ~14g' },
-    { name: 'Corn tortilla', oz: 1.1, isDry: true, note: '1 piece / ~30g' },
   ],
   // Meal 5 — Pre-Sleep Casein
   [
@@ -576,16 +575,16 @@ const MEALS = [
     macros: { p: 32, c: 30, f: 5 },
   },
   {
-    time: '12:30–1:00 PM', name: 'Pre-Workout', kcal: 420,
-    macros: { p: 38, c: 48, f: 8 },
+    time: '12:30–1:00 PM', name: 'Pre-Workout', kcal: 350,
+    macros: { p: 38, c: 32, f: 8 },
   },
   {
     time: '4:30–5:00 PM', name: 'Post-Workout', kcal: 400,
     macros: { p: 38, c: 46, f: 6 },
   },
   {
-    time: '6:30–7:00 PM', name: 'Dinner', kcal: 500,
-    macros: { p: 38, c: 46, f: 14 },
+    time: '6:30–7:00 PM', name: 'Dinner', kcal: 430,
+    macros: { p: 38, c: 34, f: 14 },
   },
   {
     time: '7:30–8:00 PM', name: 'Pre-Sleep Casein', kcal: 230,
