@@ -516,7 +516,7 @@
 
       <div class="section-label" style="margin-top:20px">LOG TODAY'S WEIGHT</div>
       <div class="add-row">
-        <input class="add-input" id="weight-input" type="number" step="0.1" min="80" max="400" placeholder="e.g. 148.2" />
+        <input class="add-input" id="weight-input" type="text" inputmode="decimal" placeholder="e.g. 148.2" autocomplete="off" />
         <button class="add-btn" onclick="logWeight()" style="background:var(--accent3);">LOG</button>
       </div>
 
@@ -837,6 +837,7 @@ function addGrocery() {
   renderAll(); updateProgress();
 }
 document.getElementById('grocery-input').addEventListener('keydown', e => { if (e.key === 'Enter') addGrocery(); });
+document.getElementById('weight-input').addEventListener('keydown', e => { if (e.key === 'Enter') logWeight(); });
 
 // ── MEALS ──
 function renderMeals() {
@@ -981,9 +982,15 @@ function saveWeightLog(log) { localStorage.setItem('summercut_weight', JSON.stri
 function logWeight() {
   const input = document.getElementById('weight-input');
   const val = parseFloat(input.value);
-  if (isNaN(val) || val < 80 || val > 400) return;
+  if (isNaN(val) || val < 80 || val > 400) {
+    input.style.borderColor = 'var(--accent2)';
+    setTimeout(() => input.style.borderColor = '', 800);
+    return;
+  }
   const log = getWeightLog();
-  const today = new Date().toISOString().slice(0, 10);
+  // Use local date to avoid UTC offset shifting to yesterday
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const existing = log.findIndex(e => e.date === today);
   if (existing >= 0) log[existing].weight = val;
   else log.push({ date: today, weight: val });
