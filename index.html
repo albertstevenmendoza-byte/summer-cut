@@ -494,7 +494,7 @@
           <button class="unit-btn" onclick="setUnit('cups', this)">CUPS</button>
         </div>
       </div>
-      <div class="section-label">DAILY TARGET — ~1,900 KCAL · 175G PROTEIN · 6 MEALS</div>
+      <div class="section-label">DAILY TARGET — ~1,905 KCAL · ~199G PROTEIN · 6 MEALS</div>
       <div id="meals-list"></div>
       <div class="section-label" style="margin-top:20px">REFEED DAY</div>
       <div class="item" style="opacity:0.6; cursor:default;">
@@ -603,14 +603,16 @@ const MEAL_FOODS = [
   [
     { name: '5 egg whites', oz: 5.3, isDry: false, note: '~150g' },
     { name: '2 whole eggs', oz: 3.5, isDry: false, note: '~100g' },
-    { name: 'Oatmeal (dry)', oz: 1.4, isDry: true, note: '¾ cup dry → ~40g' },
+    { name: 'Thomas\' Bagel Thin', oz: 1.8, isDry: true, note: '1 thin bagel / ~50g' },
+    { name: 'Light cream cheese', oz: 0.5, isDry: false, note: '1 tbsp / ~15g' },
     { name: 'Blueberries', oz: 2.6, isDry: false, note: '½ cup' },
     { name: 'Black coffee', oz: null, isDry: false, note: 'as desired' },
   ],
   // Meal 1 — Mid-Morning
   [
     { name: 'Low-fat Greek yogurt', oz: 8, isDry: false, note: '1 cup / 227g' },
-    { name: 'Banana', oz: 4.2, isDry: false, note: '1 medium / ~120g' },
+    { name: 'Vitasport whey (½ scoop)', oz: 0.75, isDry: true, note: '~21g powder / 17g protein' },
+    { name: 'Cottage cheese', oz: 2, isDry: false, note: '¼ cup / ~57g' },
   ],
   // Meal 2 — Pre-Workout
   [
@@ -629,10 +631,11 @@ const MEAL_FOODS = [
   ],
   // Meal 4 — Dinner
   [
-    { name: 'Ground turkey or tilapia', oz: 6, isDry: false, note: '170g' },
-    { name: 'Sweet potato (cooked)', oz: 4, isDry: false, note: '¾ cup / ~113g' },
+    { name: 'Protein (rotate nightly)', oz: 6, isDry: false, note: 'Chicken / Turkey 93/7 / Beef 93/7' },
+    { name: 'Carb (alternate)', oz: null, isDry: false, note: 'Sweet potato ¾ cup OR white rice ¾ cup' },
     { name: 'Baby spinach', oz: 2, isDry: false, note: '2 cups / ~57g' },
     { name: 'Olive oil', oz: 0.5, isDry: false, note: '1 tbsp / ~14g' },
+    { name: 'Lemon juice', oz: null, isDry: false, note: 'to taste' },
   ],
   // Meal 5 — Pre-Sleep Casein
   [
@@ -676,48 +679,51 @@ function setUnit(unit, btn) {
 // ── DATA ──
 const GROCERY = {
   proteins: [
-    { name: 'Chicken breast (3 lbs)', sub: 'Grilled for meals 1–4' },
-    { name: 'Lean ground turkey (2 lbs)', sub: 'Dinner rotation' },
-    { name: 'Tilapia / cod fillets', sub: 'Dinner rotation' },
+    { name: 'Chicken breast (2 lbs)', sub: 'Dinner rotation + pre-workout' },
+    { name: 'Ground turkey 93/7 (1 lb)', sub: 'Dinner rotation' },
+    { name: 'Ground beef 93/7 (1 lb)', sub: 'Dinner rotation' },
     { name: 'Eggs (1 dozen)', sub: '2 whole + 5 whites at breakfast' },
-    { name: 'Whey protein powder', sub: 'Post-workout shake' },
+    { name: 'Vitasport whey protein', sub: 'Post-workout — ½ scoop mid-morning, 1.5 scoops post-WO' },
     { name: 'Casein protein powder', sub: 'Pre-sleep 32–40g' },
     { name: 'Low-fat Greek yogurt (32 oz)', sub: 'Mid-morning & post-workout' },
-    { name: 'Low-fat cottage cheese', sub: 'Pre-sleep option' },
+    { name: 'Low-fat cottage cheese (16 oz)', sub: 'Mid-morning ¼ cup + pre-sleep option' },
   ],
   carbs: [
-    { name: 'White rice (5 lb bag)', sub: 'Pre-workout meal' },
+    { name: 'Mahatma white rice (5 lb bag)', sub: 'Pre-workout + dinner rotation' },
     { name: 'Rolled oats', sub: 'Breakfast' },
-    { name: 'Sweet potatoes (3 lbs)', sub: 'Dinner carb' },
-    { name: 'Corn tortillas', sub: 'Dinner' },
+    { name: 'Sweet potatoes (3 lbs)', sub: 'Dinner rotation' },
     { name: 'Bananas (bunch)', sub: 'Mid-morning & post-workout' },
     { name: 'Blueberries (pint)', sub: 'Breakfast' },
-    { name: 'Baby spinach (bag)', sub: 'Salads & meals' },
+    { name: 'Baby spinach (bag)', sub: 'Dinner salad base' },
     { name: 'Broccoli florets', sub: 'Pre-workout meal' },
-    { name: 'Cucumber + tomatoes', sub: 'Salads' },
     { name: 'Rice cakes', sub: 'Post-workout' },
+    { name: 'Thomas\' Bagel Thins', sub: 'Breakfast — 1 thin bagel' },
   ],
   dairy: [
+    { name: 'Light cream cheese', sub: 'Breakfast bagel — 1 tbsp' },
     { name: 'Light almond milk (carton)', sub: 'For casein shakes' },
   ],
   pantry: [
-    { name: 'Olive oil (small)', sub: 'Salad dressing fat source' },
+    { name: 'Olive oil (small)', sub: 'Dinner salad dressing' },
     { name: 'Hot sauce / salsa', sub: 'Zero-calorie flavoring' },
-    { name: 'Lemon (2–3)', sub: 'Dressing' },
+    { name: 'Lemon (2–3)', sub: 'Dinner dressing' },
     { name: 'Honey (small jar)', sub: 'Rice cake topping post-WO' },
-    { name: 'Black coffee / espresso', sub: 'Morning caffeine' },
+    { name: 'Black coffee / espresso', sub: 'Morning caffeine — cut off by 12PM' },
     { name: 'Salt, pepper, spices', sub: 'Flavor without calories' },
+    { name: 'Creatine monohydrate', sub: '5g daily — preserves strength on cut' },
+  ]
+};
   ]
 };
 
 const MEALS = [
   {
-    time: '5:30–6:00 AM', name: 'Breakfast', kcal: 480,
-    macros: { p: 38, c: 48, f: 12 },
+    time: '5:30–6:00 AM', name: 'Breakfast', kcal: 435,
+    macros: { p: 46, c: 40, f: 14 },
   },
   {
-    time: '9:00–9:30 AM', name: 'Mid-Morning', kcal: 280,
-    macros: { p: 32, c: 30, f: 5 },
+    time: '9:00–9:30 AM', name: 'Mid-Morning', kcal: 260,
+    macros: { p: 44, c: 14, f: 10 },
   },
   {
     time: '12:30–1:00 PM', name: 'Pre-Workout', kcal: 350,
@@ -928,6 +934,9 @@ function toggleMeal(i) {
 
 // ── WORKOUTS ──
 // ── WORKOUT LOGGER ──
+const TYPE_LABELS  = { power:'POWER', hyper:'HYPERTROPHY', cardio:'CARDIO', rest:'REST' };
+const TYPE_CLASSES = { power:'badge-power', hyper:'badge-hyper', cardio:'badge-cardio', rest:'badge-rest' };
+
 let _workoutLogCache = null;
 
 function getWorkoutLog() {
