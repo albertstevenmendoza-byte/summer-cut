@@ -252,16 +252,28 @@
     padding: 0 14px;
   }
   .exercise-list.open {
-    max-height: 400px; padding: 0 14px 12px;
+    max-height: 600px; padding: 0 14px 12px;
     border-top: 1px solid var(--border);
   }
+  .day-note {
+    font-size: 10px; color: var(--muted); padding: 8px 0 6px;
+    border-bottom: 1px solid var(--border); line-height: 1.5; font-style: italic;
+  }
   .exercise-row {
-    display: flex; justify-content: space-between; align-items: center;
-    padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+    display: grid;
+    grid-template-columns: 1fr auto auto auto;
+    align-items: center; gap: 6px;
+    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px;
   }
   .exercise-row:last-child { border-bottom: none; }
-  .ex-name { color: var(--text); flex: 1; }
-  .ex-sets { color: var(--muted); white-space: nowrap; font-size: 11px; }
+  .ex-name { color: var(--text); font-size: 12px; }
+  .ex-sets { color: var(--muted); white-space: nowrap; font-size: 11px; text-align: right; }
+  .ex-badge {
+    font-size: 9px; letter-spacing: 0.5px; padding: 2px 6px;
+    border-radius: 4px; white-space: nowrap; font-weight: 500; text-align: center;
+  }
+  .ex-badge.rpe { background: rgba(196,64,10,0.1); color: var(--accent2); }
+  .ex-badge.rir { background: rgba(26,107,60,0.1); color: var(--accent); }
 
   /* ── HABITS ── */
   .habit-item {
@@ -584,55 +596,60 @@ const MEALS = [
 const WORKOUTS = [
   {
     day: 'MON', name: 'Upper Power', type: 'power',
+    note: 'Compounds only — stop when bar speed slows. Never grind to failure.',
     exercises: [
-      { name: 'Barbell Bench Press', sets: '4×3–5' },
-      { name: 'Pendlay Row (BB)', sets: '4×3–5' },
-      { name: 'Overhead Press (BB)', sets: '3×5–6' },
-      { name: 'Weighted Pull-Up', sets: '3×5–6' },
-      { name: 'EZ-Bar Curl', sets: '3×8–10' },
-      { name: 'Tricep Pushdown', sets: '3×8–10' },
+      { name: 'Barbell Bench Press',  sets: '4×3–5',   rpe: '7–8', rir: '2–3' },
+      { name: 'Pendlay Row (BB)',      sets: '4×3–5',   rpe: '7–8', rir: '2–3' },
+      { name: 'Overhead Press (BB)',   sets: '3×5–6',   rpe: '8',   rir: '2'   },
+      { name: 'Weighted Pull-Up',      sets: '3×5–6',   rpe: '8',   rir: '2'   },
+      { name: 'EZ-Bar Curl',           sets: '3×8–10',  rpe: '9',   rir: '1'   },
+      { name: 'Tricep Pushdown',       sets: '3×8–10',  rpe: '9',   rir: '1'   },
     ]
   },
   {
     day: 'TUE', name: 'Zone 2 Cardio', type: 'cardio',
+    note: 'Conversational pace only — no breathlessness.',
     exercises: [
-      { name: 'Incline treadmill / bike / walk', sets: '35 min' },
-      { name: 'Heart rate target', sets: '120–140 BPM' },
+      { name: 'Incline treadmill / bike / walk', sets: '35 min',      rpe: '5–6', rir: '—' },
+      { name: 'Heart rate target',               sets: '120–140 BPM', rpe: '—',   rir: '—' },
     ]
   },
   {
     day: 'WED', name: 'Lower Power', type: 'power',
+    note: 'Brace hard. Stop squat & deadlift the moment form wavers.',
     exercises: [
-      { name: 'Barbell Back Squat', sets: '4×3–5' },
-      { name: 'Romanian Deadlift', sets: '4×4–6' },
-      { name: 'Leg Press', sets: '3×6–8' },
-      { name: 'Walking Lunge (DB)', sets: '3×8 each' },
-      { name: 'Standing Calf Raise', sets: '4×10–12' },
-      { name: 'Plank', sets: '3×45s' },
+      { name: 'Barbell Back Squat',    sets: '4×3–5',    rpe: '7–8', rir: '2–3' },
+      { name: 'Romanian Deadlift',     sets: '4×4–6',    rpe: '7–8', rir: '2–3' },
+      { name: 'Leg Press',             sets: '3×6–8',    rpe: '8',   rir: '2'   },
+      { name: 'Walking Lunge (DB)',     sets: '3×8 each', rpe: '8',   rir: '2'   },
+      { name: 'Standing Calf Raise',   sets: '4×10–12',  rpe: '9',   rir: '1'   },
+      { name: 'Plank',                 sets: '3×45s',    rpe: '8',   rir: '—'   },
     ]
   },
   {
     day: 'FRI', name: 'Upper Hypertrophy', type: 'hyper',
+    note: 'Compounds @ RPE 8. Last set of isolations → go to failure.',
     exercises: [
-      { name: 'Incline DB Press', sets: '4×10–12' },
-      { name: 'Seated Cable Row', sets: '4×10–12' },
-      { name: 'Lateral Raises (DB)', sets: '3×12–15' },
-      { name: 'Chest-Supported Row', sets: '3×10–12' },
-      { name: 'Hammer Curl', sets: '3×10–12' },
-      { name: 'Overhead Tricep Ext.', sets: '3×10–12' },
-      { name: 'Face Pulls', sets: '3×15–20' },
+      { name: 'Incline DB Press',        sets: '4×10–12', rpe: '8',   rir: '2'   },
+      { name: 'Seated Cable Row',        sets: '4×10–12', rpe: '8',   rir: '2'   },
+      { name: 'Lateral Raises (DB)',     sets: '3×12–15', rpe: '9–10',rir: '0–1' },
+      { name: 'Chest-Supported Row',     sets: '3×10–12', rpe: '8',   rir: '2'   },
+      { name: 'Hammer Curl',             sets: '3×10–12', rpe: '9–10',rir: '0–1' },
+      { name: 'Overhead Tricep Ext.',    sets: '3×10–12', rpe: '9–10',rir: '0–1' },
+      { name: 'Face Pulls',              sets: '3×15–20', rpe: '9',   rir: '1'   },
     ]
   },
   {
     day: 'SAT', name: 'Lower Hypertrophy', type: 'hyper',
+    note: 'Compounds @ RPE 8. Isolations last set to failure — safe range of motion.',
     exercises: [
-      { name: 'Hack Squat / Leg Press', sets: '4×10–12' },
-      { name: 'DB Romanian Deadlift', sets: '4×10–12' },
-      { name: 'Leg Extension', sets: '3×12–15' },
-      { name: 'Leg Curl (Lying)', sets: '3×12–15' },
-      { name: 'Hip Thrust (BB)', sets: '3×10–12' },
-      { name: 'Seated Calf Raise', sets: '4×15–20' },
-      { name: 'Ab Wheel Rollout', sets: '3×10–12' },
+      { name: 'Hack Squat / Leg Press',  sets: '4×10–12', rpe: '8',   rir: '2'   },
+      { name: 'DB Romanian Deadlift',    sets: '4×10–12', rpe: '8',   rir: '2'   },
+      { name: 'Leg Extension',           sets: '3×12–15', rpe: '9–10',rir: '0–1' },
+      { name: 'Leg Curl (Lying)',         sets: '3×12–15', rpe: '9–10',rir: '0–1' },
+      { name: 'Hip Thrust (BB)',          sets: '3×10–12', rpe: '8',   rir: '2'   },
+      { name: 'Seated Calf Raise',        sets: '4×15–20', rpe: '9–10',rir: '0–1' },
+      { name: 'Ab Wheel Rollout',         sets: '3×10–12', rpe: '8',   rir: '2'   },
     ]
   },
 ];
@@ -780,10 +797,13 @@ function renderWorkout() {
         <div class="day-type-badge ${TYPE_CLASSES[w.type]}">${TYPE_LABELS[w.type]}</div>
       </div>
       <div class="exercise-list ${open ? 'open' : ''}">
+        ${w.note ? `<div class="day-note">💡 ${w.note}</div>` : ''}
         ${w.exercises.map(ex => `
           <div class="exercise-row">
             <span class="ex-name">${ex.name}</span>
             <span class="ex-sets">${ex.sets}</span>
+            ${ex.rpe !== '—' ? `<span class="ex-badge rpe">RPE ${ex.rpe}</span>` : '<span></span>'}
+            ${ex.rir !== '—' ? `<span class="ex-badge rir">${ex.rir} RIR</span>` : '<span></span>'}
           </div>`).join('')}
       </div>
     </div>`;
