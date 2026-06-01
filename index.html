@@ -970,11 +970,213 @@ function updateProgress() {
   document.getElementById('habits-bar').style.width = `${(doneHabits/allHabits.length)*100}%`;
 }
 
+// ── WEIGHT TRACKER ──
+const START_WEIGHT = 148;
+const WEEKLY_TARGET = 0.6; // lbs/week
+const DAILY_TARGET  = WEEKLY_TARGET / 7;
+
+function getWeightLog() { return JSON.parse(localStorage.getItem('summercut_weight') || '[]'); }
+function saveWeightLog(log) { localStorage.setItem('summercut_weight', JSON.stringify(log)); }
+
+function logWeight() {
+  const input = document.getElementById('weight-input');
+  const val = parseFloat(input.value);
+  if (isNaN(val) || val < 80 || val > 400) return;
+  const log = getWeightLog();
+  const today = new Date().toISOString().slice(0, 10);
+  const existing = log.findIndex(e => e.date === today);
+  if (existing >= 0) log[existing].weight = val;
+  else log.push({ date: today, weight: val });
+  log.sort((a, b) => a.date.localeCompare(b.date));
+  saveWeightLog(log);
+  input.value = '';
+  renderWeight();
+}
+
+function deleteEntry(date) {
+  const log = getWeightLog().filter(e => e.date !== date);
+  saveWeightLog(log);
+  renderWeight();
+}
+
+function rollingAvg(log, idx, window) {
+  const start = Math.max(0, idx - window + 1);
+  const slice = log.slice(start, idx + 1);
+  return slice.reduce((s, e) => s + e.weight, 0) / slice.length;
+}
+
+function renderWeight() {
+  const log = getWeightLog();
+  const histEl = document.getElementById('weight-history');
+
+  // ── Stats ──
+  const startW = log.length > 0 ? log[0].weight : null;
+  const avg7   = log.length > 0 ? rollingAvg(log, log.length - 1, 7) : null;
+  const lost   = (startW && avg7) ? (startW - avg7) : null;
+
+  document.getElementById('w-start').textContent = startW ? startW.toFixed(1) : '—';
+  document.getElementById('w-avg').textContent   = avg7   ? avg7.toFixed(1)   : '—';
+  document.getElementById('w-lost').textContent  = lost   ? (lost > 0 ? '-' : '+') + Math.abs(lost).toFixed(1) : '—';
+
+  // ── Pace indicator ──
+  const dot  = document.getElementById('w-pace-dot');
+  const pace = document.getElementById('w-pace-text');
+  if (log.length >= 2) {
+    const days = (new Date(log[log.length-1].date) - new Date(log[0].date)) / 86400000;
+    const actualRate = days > 0 ? (lost / days) * 7 : 0;
+    dot.className = 'pace-dot';
+    if (actualRate >= 0.4 && actualRate <= 0.85) {
+      dot.classList.add('on-track');
+      pace.textContent = `On track — losing ${actualRate.toFixed(2)} lbs/week (target: ~0.6)`;
+    } else if (actualRate > 0.85) {
+      dot.classList.add('fast');
+      pace.textContent = `Losing fast — ${actualRate.toFixed(2)} lbs/week. Consider a refeed.`;
+    } else if (actualRate > 0) {
+      dot.classList.add('slow');
+      pace.textContent = `Slower than target — ${actualRate.toFixed(2)} lbs/week. Check adherence.`;
+    } else {
+      dot.classList.add('slow');
+      pace.textContent = `Weight trending up — review intake and sodium.`;
+    }
+  } else {
+    dot.className = 'pace-dot';
+    pace.textContent = 'Log at least 2 entries to see pace';
+  }
+
+  // ── Chart ──
+  drawWeightChart(log);
+
+  // ── History list ──
+  if (log.length === 0) {
+    histEl.innerHTML = `<div class="item" style="opacity:0.5;cursor:default;">
+      <div class="item-body"><div class="item-name">No entries yet — log your first weigh-in above</div></div>
+    </div>`;
+    return;
+  }
+  histEl.innerHTML = [...log].reverse().map((e, i, arr) => {
+    const prev = arr[i + 1];
+    const delta = prev ? (e.weight - prev.weight) : null;
+    let deltaHTML = '';
+    if (delta !== null) {
+      const sign = delta < 0 ? '▼' : delta > 0 ? '▲' : '—';
+      const cls  = delta < 0 ? 'delta-down' : delta > 0 ? 'delta-up' : 'delta-same';
+      deltaHTML = `<span class="entry-delta ${cls}">${sign} ${Math.abs(delta).toFixed(1)}</span>`;
+    }
+    const d = new Date(e.date + 'T12:00:00');
+    const label = `${days[d.getDay()]} ${months[d.getMonth()]} ${d.getDate()}`;
+    return `<div class="weight-entry">
+      <div>
+        <div class="entry-date">${label}</div>
+        <div class="entry-weight">${e.weight.toFixed(1)} <span style="font-size:13px;font-family:'DM Mono',monospace;color:var(--muted)">lbs</span></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${deltaHTML}
+        <button class="entry-del" onclick="deleteEntry('${e.date}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function drawWeightChart(log) {
+  const canvas = document.getElementById('weightChart');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.offsetWidth || 340;
+  const H = 180;
+  canvas.width  = W * window.devicePixelRatio;
+  canvas.height = H * window.devicePixelRatio;
+  ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+
+  const pad = { top: 16, right: 16, bottom: 28, left: 42 };
+  const chartW = W - pad.left - pad.right;
+  const chartH = H - pad.top - pad.bottom;
+
+  ctx.clearRect(0, 0, W, H);
+
+  if (log.length < 2) {
+    ctx.fillStyle = '#aaa89f';
+    ctx.font = `11px 'DM Mono', monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText('Log 2+ entries to see chart', W / 2, H / 2);
+    return;
+  }
+
+  // Build target line from first entry
+  const startDate = new Date(log[0].date + 'T12:00:00');
+  const endDate   = new Date(log[log.length - 1].date + 'T12:00:00');
+  const totalDays = Math.max((endDate - startDate) / 86400000, 1);
+  const targetEnd = log[0].weight - (totalDays / 7) * WEEKLY_TARGET;
+
+  const allWeights = log.map(e => e.weight);
+  const avgs = log.map((_, i) => rollingAvg(log, i, 7));
+  const minW = Math.min(...allWeights, targetEnd) - 1.5;
+  const maxW = Math.max(...allWeights) + 1.5;
+
+  function xPos(dateStr) {
+    const d = (new Date(dateStr + 'T12:00:00') - startDate) / 86400000;
+    return pad.left + (d / totalDays) * chartW;
+  }
+  function yPos(w) {
+    return pad.top + (1 - (w - minW) / (maxW - minW)) * chartH;
+  }
+
+  // Grid lines
+  const steps = 4;
+  ctx.strokeStyle = '#dedad2'; ctx.lineWidth = 1;
+  for (let i = 0; i <= steps; i++) {
+    const w = minW + (i / steps) * (maxW - minW);
+    const y = yPos(w);
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(pad.left + chartW, y); ctx.stroke();
+    ctx.fillStyle = '#7a7870'; ctx.font = `9px 'DM Mono',monospace`; ctx.textAlign = 'right';
+    ctx.fillText(w.toFixed(1), pad.left - 4, y + 3);
+  }
+
+  // Target pace line (dashed)
+  ctx.beginPath();
+  ctx.setLineDash([4, 4]);
+  ctx.strokeStyle = '#0a5c8a'; ctx.lineWidth = 1.5;
+  ctx.moveTo(xPos(log[0].date), yPos(log[0].weight));
+  ctx.lineTo(xPos(log[log.length - 1].date), yPos(targetEnd));
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Rolling average line
+  ctx.beginPath();
+  ctx.strokeStyle = '#1a6b3c'; ctx.lineWidth = 2;
+  log.forEach((e, i) => {
+    const x = xPos(e.date); const y = yPos(avgs[i]);
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Raw weight dots
+  log.forEach((e, i) => {
+    const x = xPos(e.date); const y = yPos(e.weight);
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = '#c4400a'; ctx.fill();
+  });
+
+  // Legend
+  ctx.font = `9px 'DM Mono',monospace`; ctx.textAlign = 'left';
+  ctx.fillStyle = '#c4400a';
+  ctx.fillText('● daily', pad.left, H - 6);
+  ctx.fillStyle = '#1a6b3c';
+  ctx.fillText('─ 7-day avg', pad.left + 46, H - 6);
+  ctx.fillStyle = '#0a5c8a';
+  ctx.fillText('╌ target pace', pad.left + 118, H - 6);
+}
+
 // ── RESET ──
 function resetSection(section) {
   Object.keys(state).filter(k => k.startsWith(section+'_') && !k.includes('_open') && !k.includes('_custom')).forEach(k => delete state[k]);
   if (section === 'grocery') Object.keys(state).filter(k => k.startsWith('grocery_custom_')).forEach(k => delete state[k]);
   save(); renderAll(); updateProgress();
+}
+
+function clearWeightHistory() {
+  if (!confirm('Clear all weight data?')) return;
+  localStorage.removeItem('summercut_weight');
+  renderWeight();
 }
 
 // ── TABS ──
@@ -984,12 +1186,14 @@ function switchTab(name, btn) {
   document.getElementById(`page-${name}`).classList.add('active');
   btn.classList.add('active');
   document.querySelector('.content').scrollTop = 0;
+  if (name === 'weight') renderWeight();
 }
 
 // ── INIT ──
 function renderAll() { renderGrocery(); renderMeals(); renderWorkout(); renderHabits(); }
 renderAll();
 updateProgress();
+renderWeight();
 </script>
 </body>
 </html>
