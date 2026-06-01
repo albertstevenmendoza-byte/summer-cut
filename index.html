@@ -248,32 +248,77 @@
 
   .exercise-list {
     max-height: 0; overflow: hidden;
-    transition: max-height 0.3s cubic-bezier(.4,0,.2,1);
+    transition: max-height 0.35s cubic-bezier(.4,0,.2,1);
     padding: 0 14px;
   }
   .exercise-list.open {
-    max-height: 600px; padding: 0 14px 12px;
+    max-height: 9999px; padding: 0 14px 12px;
     border-top: 1px solid var(--border);
   }
   .day-note {
     font-size: 10px; color: var(--muted); padding: 8px 0 6px;
     border-bottom: 1px solid var(--border); line-height: 1.5; font-style: italic;
   }
-  .exercise-row {
-    display: grid;
-    grid-template-columns: 1fr auto auto auto;
-    align-items: center; gap: 6px;
-    padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px;
+
+  /* ── EXERCISE BLOCK ── */
+  .ex-block { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .ex-block:last-child { border-bottom: none; }
+  .ex-header {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
   }
-  .exercise-row:last-child { border-bottom: none; }
-  .ex-name { color: var(--text); font-size: 12px; }
-  .ex-sets { color: var(--muted); white-space: nowrap; font-size: 11px; text-align: right; }
+  .ex-name { color: var(--text); font-size: 12px; font-weight: 500; flex: 1; }
+  .ex-prescription { display: flex; gap: 4px; flex-shrink: 0; }
   .ex-badge {
     font-size: 9px; letter-spacing: 0.5px; padding: 2px 6px;
-    border-radius: 4px; white-space: nowrap; font-weight: 500; text-align: center;
+    border-radius: 4px; white-space: nowrap; font-weight: 500;
   }
+  .ex-badge.sets-badge { background: var(--surface); color: var(--muted); border: 1px solid var(--border); }
   .ex-badge.rpe { background: rgba(196,64,10,0.1); color: var(--accent2); }
   .ex-badge.rir { background: rgba(26,107,60,0.1); color: var(--accent); }
+
+  /* ── SET ROWS ── */
+  .set-rows { display: flex; flex-direction: column; gap: 5px; margin-bottom: 6px; }
+  .set-row {
+    display: grid; grid-template-columns: 22px 1fr 1fr 1fr 28px;
+    gap: 5px; align-items: center;
+  }
+  .set-num {
+    font-size: 10px; color: var(--muted); text-align: center;
+    font-weight: 500; letter-spacing: 0.5px;
+  }
+  .set-input {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 8px; font-family: 'DM Mono', monospace;
+    font-size: 12px; color: var(--text); text-align: center;
+    outline: none; width: 100%; transition: border-color 0.15s;
+  }
+  .set-input:focus { border-color: var(--accent3); }
+  .set-input.logged { border-color: var(--accent); background: rgba(26,107,60,0.06); }
+  .set-input::placeholder { color: var(--muted); font-size: 10px; }
+  .set-log-btn {
+    width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--border);
+    background: var(--surface); cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 12px; transition: all 0.15s; flex-shrink: 0;
+  }
+  .set-log-btn.done { background: var(--accent); border-color: var(--accent); }
+  .set-log-btn:active { transform: scale(0.9); }
+
+  .set-header-row {
+    display: grid; grid-template-columns: 22px 1fr 1fr 1fr 28px;
+    gap: 5px; margin-bottom: 3px;
+  }
+  .set-col-label {
+    font-size: 9px; letter-spacing: 1px; color: var(--muted);
+    text-align: center; text-transform: uppercase;
+  }
+
+  /* ── PREVIOUS BEST ── */
+  .ex-prev {
+    font-size: 10px; color: var(--muted); margin-top: 2px;
+    padding: 4px 8px; background: var(--surface); border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .ex-prev span { color: var(--accent3); }
 
   /* ── HABITS ── */
   .habit-item {
@@ -882,13 +927,149 @@ function toggleMeal(i) {
 }
 
 // ── WORKOUTS ──
-const TYPE_LABELS  = { power:'POWER', hyper:'HYPERTROPHY', cardio:'CARDIO', rest:'REST' };
-const TYPE_CLASSES = { power:'badge-power', hyper:'badge-hyper', cardio:'badge-cardio', rest:'badge-rest' };
+// ── WORKOUT LOGGER ──
+let _workoutLogCache = null;
+
+function getWorkoutLog() {
+  if (_workoutLogCache !== null) return _workoutLogCache;
+  try { _workoutLogCache = JSON.parse(localStorage.getItem('summercut_wlog') || '{}'); }
+  catch(e) { _workoutLogCache = {}; }
+  return _workoutLogCache;
+}
+function saveWorkoutLog(log) {
+  _workoutLogCache = log;
+  try { localStorage.setItem('summercut_wlog', JSON.stringify(log)); } catch(e) {}
+}
+
+function todayKey() {
+  const n = new Date();
+  return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+}
+
+// key: "dayIdx_exIdx_setIdx" → {weight, reps, rpe, done}
+function getSetLog(dayIdx, exIdx, setIdx) {
+  const log = getWorkoutLog();
+  return log[`${todayKey()}_${dayIdx}_${exIdx}_${setIdx}`] || {};
+}
+function saveSetLog(dayIdx, exIdx, setIdx, data) {
+  const log = getWorkoutLog();
+  log[`${todayKey()}_${dayIdx}_${exIdx}_${setIdx}`] = data;
+  saveWorkoutLog(log);
+}
+
+// Get best previous performance for an exercise (across all past days)
+function getPrevBest(dayIdx, exIdx) {
+  const log = getWorkoutLog();
+  const today = todayKey();
+  let bestWeight = 0, bestReps = 0, bestDate = null;
+  Object.entries(log).forEach(([k, v]) => {
+    const parts = k.split('_');
+    // key format: YYYY-MM-DD_dayIdx_exIdx_setIdx
+    const date = parts.slice(0,3).join('-');
+    const dIdx = parts[3], eIdx = parts[4];
+    if (date === today) return;
+    if (parseInt(dIdx) === dayIdx && parseInt(eIdx) === exIdx && v.done) {
+      const w = parseFloat(v.weight) || 0;
+      const r = parseInt(v.reps) || 0;
+      if (w > bestWeight || (w === bestWeight && r > bestReps)) {
+        bestWeight = w; bestReps = r; bestDate = date;
+      }
+    }
+  });
+  return bestWeight > 0 ? { weight: bestWeight, reps: bestReps, date: bestDate } : null;
+}
+
+function parseSetCount(setsStr) {
+  const m = setsStr.match(/^(\d+)/);
+  return m ? parseInt(m[1]) : 3;
+}
+
+function logSet(dayIdx, exIdx, setIdx) {
+  const wEl = document.getElementById(`w_${dayIdx}_${exIdx}_${setIdx}`);
+  const rEl = document.getElementById(`r_${dayIdx}_${exIdx}_${setIdx}`);
+  const pEl = document.getElementById(`p_${dayIdx}_${exIdx}_${setIdx}`);
+  const btn = document.getElementById(`btn_${dayIdx}_${exIdx}_${setIdx}`);
+  const weight = wEl ? wEl.value.trim() : '';
+  const reps   = rEl ? rEl.value.trim() : '';
+  const rpe    = pEl ? pEl.value.trim() : '';
+  const existing = getSetLog(dayIdx, exIdx, setIdx);
+  const wasDone = existing.done;
+  const nowDone = !wasDone;
+  saveSetLog(dayIdx, exIdx, setIdx, { weight, reps, rpe, done: nowDone });
+  // update UI without full re-render
+  if (btn) {
+    btn.className = `set-log-btn ${nowDone ? 'done' : ''}`;
+    btn.innerHTML = nowDone ? CHECK : '';
+  }
+  [wEl, rEl, pEl].forEach(el => { if(el) el.classList.toggle('logged', nowDone); });
+}
 
 function renderWorkout() {
   document.getElementById('workout-list').innerHTML = WORKOUTS.map((w, i) => {
     const checked = isChecked('workout', `day_${i}`);
     const open = state[`workout_open_${i}`];
+    const isCardio = w.type === 'cardio';
+
+    const exerciseHTML = isCardio
+      ? w.exercises.map(ex => `
+          <div class="ex-block">
+            <div class="ex-header">
+              <span class="ex-name">${ex.name}</span>
+              <div class="ex-prescription">
+                <span class="ex-badge sets-badge">${ex.sets}</span>
+                ${ex.rpe !== '—' ? `<span class="ex-badge rpe">RPE ${ex.rpe}</span>` : ''}
+              </div>
+            </div>
+          </div>`).join('')
+      : w.exercises.map((ex, j) => {
+          const numSets = parseSetCount(ex.sets);
+          const prev = getPrevBest(i, j);
+          const prevHTML = prev
+            ? `<div class="ex-prev">prev best: <span>${prev.weight}lbs × ${prev.reps} reps</span></div>`
+            : `<div class="ex-prev" style="color:var(--muted)">no previous data yet</div>`;
+
+          const setRows = Array.from({length: numSets}, (_, s) => {
+            const logged = getSetLog(i, j, s);
+            const isDone = !!logged.done;
+            return `
+              <div class="set-row">
+                <span class="set-num">S${s+1}</span>
+                <input class="set-input ${isDone?'logged':''}" id="w_${i}_${j}_${s}"
+                  type="text" inputmode="decimal" placeholder="lbs"
+                  value="${logged.weight||''}" autocomplete="off" />
+                <input class="set-input ${isDone?'logged':''}" id="r_${i}_${j}_${s}"
+                  type="text" inputmode="numeric" placeholder="reps"
+                  value="${logged.reps||''}" autocomplete="off" />
+                <input class="set-input ${isDone?'logged':''}" id="p_${i}_${j}_${s}"
+                  type="text" inputmode="decimal" placeholder="RPE"
+                  value="${logged.rpe||''}" autocomplete="off" />
+                <button class="set-log-btn ${isDone?'done':''}" id="btn_${i}_${j}_${s}"
+                  onclick="logSet(${i},${j},${s})">${isDone?CHECK:''}</button>
+              </div>`;
+          }).join('');
+
+          return `
+            <div class="ex-block">
+              <div class="ex-header">
+                <span class="ex-name">${ex.name}</span>
+                <div class="ex-prescription">
+                  <span class="ex-badge sets-badge">${ex.sets}</span>
+                  ${ex.rpe !== '—' ? `<span class="ex-badge rpe">RPE ${ex.rpe}</span>` : ''}
+                  ${ex.rir !== '—' ? `<span class="ex-badge rir">${ex.rir} RIR</span>` : ''}
+                </div>
+              </div>
+              <div class="set-header-row">
+                <span></span>
+                <span class="set-col-label">WEIGHT</span>
+                <span class="set-col-label">REPS</span>
+                <span class="set-col-label">RPE</span>
+                <span></span>
+              </div>
+              <div class="set-rows">${setRows}</div>
+              ${prevHTML}
+            </div>`;
+        }).join('');
+
     return `<div class="workout-day ${checked ? 'checked' : ''}">
       <div class="workout-day-header" onclick="toggleWorkoutDay(${i})">
         <div class="day-check" onclick="event.stopPropagation(); toggleWorkoutCheck(${i})">${checked ? CHECK : ''}</div>
@@ -898,13 +1079,7 @@ function renderWorkout() {
       </div>
       <div class="exercise-list ${open ? 'open' : ''}">
         ${w.note ? `<div class="day-note">💡 ${w.note}</div>` : ''}
-        ${w.exercises.map(ex => `
-          <div class="exercise-row">
-            <span class="ex-name">${ex.name}</span>
-            <span class="ex-sets">${ex.sets}</span>
-            ${ex.rpe !== '—' ? `<span class="ex-badge rpe">RPE ${ex.rpe}</span>` : '<span></span>'}
-            ${ex.rir !== '—' ? `<span class="ex-badge rir">${ex.rir} RIR</span>` : '<span></span>'}
-          </div>`).join('')}
+        ${exerciseHTML}
       </div>
     </div>`;
   }).join('');
@@ -976,19 +1151,35 @@ const START_WEIGHT = 148;
 const WEEKLY_TARGET = 0.6; // lbs/week
 const DAILY_TARGET  = WEEKLY_TARGET / 7;
 
-function getWeightLog() { return JSON.parse(localStorage.getItem('summercut_weight') || '[]'); }
-function saveWeightLog(log) { localStorage.setItem('summercut_weight', JSON.stringify(log)); }
+// ── WEIGHT STORAGE (safe wrapper — works in sandbox & GitHub Pages) ──
+let _weightLogCache = null;
+
+function getWeightLog() {
+  if (_weightLogCache !== null) return _weightLogCache;
+  try {
+    const raw = localStorage.getItem('summercut_weight');
+    _weightLogCache = raw ? JSON.parse(raw) : [];
+  } catch(e) {
+    _weightLogCache = [];
+  }
+  return _weightLogCache;
+}
+
+function saveWeightLog(log) {
+  _weightLogCache = log;
+  try { localStorage.setItem('summercut_weight', JSON.stringify(log)); } catch(e) {}
+}
 
 function logWeight() {
   const input = document.getElementById('weight-input');
-  const val = parseFloat(input.value);
+  const raw = (input.value || '').trim().replace(',', '.');
+  const val = parseFloat(raw);
   if (isNaN(val) || val < 80 || val > 400) {
     input.style.borderColor = 'var(--accent2)';
-    setTimeout(() => input.style.borderColor = '', 800);
+    setTimeout(() => input.style.borderColor = '', 1000);
     return;
   }
   const log = getWeightLog();
-  // Use local date to avoid UTC offset shifting to yesterday
   const now = new Date();
   const today = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
   const existing = log.findIndex(e => e.date === today);
@@ -997,6 +1188,8 @@ function logWeight() {
   log.sort((a, b) => a.date.localeCompare(b.date));
   saveWeightLog(log);
   input.value = '';
+  input.style.borderColor = 'var(--accent)';
+  setTimeout(() => input.style.borderColor = '', 800);
   renderWeight();
 }
 
@@ -1182,7 +1375,8 @@ function resetSection(section) {
 
 function clearWeightHistory() {
   if (!confirm('Clear all weight data?')) return;
-  localStorage.removeItem('summercut_weight');
+  _weightLogCache = [];
+  try { localStorage.removeItem('summercut_weight'); } catch(e) {}
   renderWeight();
 }
 
