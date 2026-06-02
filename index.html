@@ -512,7 +512,10 @@
         <div class="progress-meta"><span>WEEK COMPLETION</span><span id="workout-count">0 / 4 lifts</span></div>
         <div class="progress-track"><div class="progress-fill blue" id="workout-bar" style="width:0%"></div></div>
       </div>
-      <div class="section-label">THIS WEEK'S PLAN — UPPER / LOWER P.H.U.L.</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <div class="section-label" style="margin:0">THIS WEEK'S PLAN — UPPER / LOWER P.H.U.L.</div>
+        <span id="workout-sync-status" style="font-size:10px;letter-spacing:1px;"></span>
+      </div>
       <div id="workout-list"></div>
       <button class="reset-btn" onclick="resetSection('workout')">↺ RESET WEEK</button>
     </div>
@@ -931,51 +934,81 @@ function toggleMeal(i) {
 }
 
 // ── WORKOUTS ──
-// ── WORKOUT LOGGER ──
+// ── WORKOUT LOGGER — Supabase Cloud Storage ──
 const TYPE_LABELS  = { power:'POWER', hyper:'HYPERTROPHY', cardio:'CARDIO', rest:'REST' };
 const TYPE_CLASSES = { power:'badge-power', hyper:'badge-hyper', cardio:'badge-cardio', rest:'badge-rest' };
 
-let _workoutLogCache = null;
+const SB_URL     = 'https://ixmzenguuzsewkoaibpd.supabase.co';
+const SB_KEY     = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml4bXplbmd1dXpzZXdrb2FpYnBkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAzNzMzMDUsImV4cCI6MjA5NTk0OTMwNX0.bu3q9tzTaA4XbuMScwRzTLrkE5IWft7a7W2vaTFK2Vc';
+const SB_HEADERS = {
+  'apikey': SB_KEY,
+  'Authorization': `Bearer ${SB_KEY}`,
+  'Content-Type': 'application/json',
+  'Prefer': 'resolution=merge-duplicates'
+};
 
-function getWorkoutLog() {
-  if (_workoutLogCache !== null) return _workoutLogCache;
-  try { _workoutLogCache = JSON.parse(localStorage.getItem('summercut_wlog') || '{}'); }
-  catch(e) { _workoutLogCache = {}; }
-  return _workoutLogCache;
-}
-function saveWorkoutLog(log) {
-  _workoutLogCache = log;
-  try { localStorage.setItem('summercut_wlog', JSON.stringify(log)); } catch(e) {}
-}
+let _wCache = {};
+let _wCacheLoaded = false;
 
 function todayKey() {
   const n = new Date();
   return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
 }
 
-// key: "dayIdx_exIdx_setIdx" → {weight, reps, rpe, done}
-function getSetLog(dayIdx, exIdx, setIdx) {
-  const log = getWorkoutLog();
-  return log[`${todayKey()}_${dayIdx}_${exIdx}_${setIdx}`] || {};
-}
-function saveSetLog(dayIdx, exIdx, setIdx, data) {
-  const log = getWorkoutLog();
-  log[`${todayKey()}_${dayIdx}_${exIdx}_${setIdx}`] = data;
-  saveWorkoutLog(log);
+async function loadWorkoutCache() {
+  if (_wCacheLoaded) return;
+  try {
+    const res = await fetch(`${SB_URL}/rest/v1/workout_logs?select=*&order=log_date.asc`, { headers: SB_HEADERS });
+    if (!res.ok) throw new Error(await res.text());
+    const rows = await res.json();
+    _wCache = {};
+    rows.forEach(r => {
+      const k = `${r.log_date}_${r.day_idx}_${r.ex_idx}_${r.set_idx}`;
+      _wCache[k] = { weight: r.weight, reps: r.reps, rpe: r.rpe, done: r.done };
+    });
+    // merge any local fallback data not yet in cloud
+    try {
+      const local = JSON.parse(localStorage.getItem('summercut_wlog') || '{}');
+      Object.assign(_wCache, local);
+    } catch(_) {}
+    _wCacheLoaded = true;
+  } catch(e) {
+    console.warn('Supabase load failed, using local fallback', e);
+    try { _wCache = JSON.parse(localStorage.getItem('summercut_wlog') || '{}'); } catch(_) {}
+    _wCacheLoaded = true;
+  }
 }
 
-// Get best previous performance for an exercise (across all past days)
+async function saveSetToSupabase(dayIdx, exIdx, setIdx, data) {
+  const today = todayKey();
+  const k = `${today}_${dayIdx}_${exIdx}_${setIdx}`;
+  _wCache[k] = data;
+  try { localStorage.setItem('summercut_wlog', JSON.stringify(_wCache)); } catch(_) {}
+  try {
+    const body = JSON.stringify({
+      log_date: today, day_idx: dayIdx, ex_idx: exIdx, set_idx: setIdx,
+      weight: data.weight, reps: data.reps, rpe: data.rpe, done: data.done
+    });
+    const res = await fetch(`${SB_URL}/rest/v1/workout_logs`, {
+      method: 'POST', headers: SB_HEADERS, body
+    });
+    if (!res.ok) console.warn('Supabase save failed:', await res.text());
+  } catch(e) { console.warn('Supabase save error:', e); }
+}
+
+function getSetLog(dayIdx, exIdx, setIdx) {
+  return _wCache[`${todayKey()}_${dayIdx}_${exIdx}_${setIdx}`] || {};
+}
+
 function getPrevBest(dayIdx, exIdx) {
-  const log = getWorkoutLog();
   const today = todayKey();
   let bestWeight = 0, bestReps = 0, bestDate = null;
-  Object.entries(log).forEach(([k, v]) => {
+  Object.entries(_wCache).forEach(([k, v]) => {
     const parts = k.split('_');
-    // key format: YYYY-MM-DD_dayIdx_exIdx_setIdx
     const date = parts.slice(0,3).join('-');
-    const dIdx = parts[3], eIdx = parts[4];
+    const dIdx = parseInt(parts[3]), eIdx = parseInt(parts[4]);
     if (date === today) return;
-    if (parseInt(dIdx) === dayIdx && parseInt(eIdx) === exIdx && v.done) {
+    if (dIdx === dayIdx && eIdx === exIdx && v.done) {
       const w = parseFloat(v.weight) || 0;
       const r = parseInt(v.reps) || 0;
       if (w > bestWeight || (w === bestWeight && r > bestReps)) {
@@ -991,7 +1024,7 @@ function parseSetCount(setsStr) {
   return m ? parseInt(m[1]) : 3;
 }
 
-function logSet(dayIdx, exIdx, setIdx) {
+async function logSet(dayIdx, exIdx, setIdx) {
   const wEl = document.getElementById(`w_${dayIdx}_${exIdx}_${setIdx}`);
   const rEl = document.getElementById(`r_${dayIdx}_${exIdx}_${setIdx}`);
   const pEl = document.getElementById(`p_${dayIdx}_${exIdx}_${setIdx}`);
@@ -999,17 +1032,29 @@ function logSet(dayIdx, exIdx, setIdx) {
   const weight = wEl ? wEl.value.trim() : '';
   const reps   = rEl ? rEl.value.trim() : '';
   const rpe    = pEl ? pEl.value.trim() : '';
-  const existing = getSetLog(dayIdx, exIdx, setIdx);
-  const wasDone = existing.done;
-  const nowDone = !wasDone;
-  saveSetLog(dayIdx, exIdx, setIdx, { weight, reps, rpe, done: nowDone });
-  // update UI without full re-render
-  if (btn) {
-    btn.className = `set-log-btn ${nowDone ? 'done' : ''}`;
-    btn.innerHTML = nowDone ? CHECK : '';
-  }
+  const nowDone = !getSetLog(dayIdx, exIdx, setIdx).done;
+  const data = { weight, reps, rpe, done: nowDone };
+
+  // optimistic UI
+  if (btn) { btn.className = `set-log-btn ${nowDone ? 'done' : ''}`; btn.innerHTML = nowDone ? CHECK : ''; btn.style.opacity = '0.5'; }
   [wEl, rEl, pEl].forEach(el => { if(el) el.classList.toggle('logged', nowDone); });
+
+  await saveSetToSupabase(dayIdx, exIdx, setIdx, data);
+  if (btn) btn.style.opacity = '1';
 }
+
+async function initWorkout() {
+  const status = document.getElementById('workout-sync-status');
+  if (status) { status.textContent = '⟳ syncing...'; status.style.color = 'var(--muted)'; }
+  await loadWorkoutCache();
+  if (status) {
+    status.textContent = _wCacheLoaded ? '✓ synced' : '⚠ offline';
+    status.style.color = _wCacheLoaded ? 'var(--accent)' : 'var(--accent2)';
+    setTimeout(() => { status.textContent = ''; }, 2500);
+  }
+  renderWorkout();
+}
+
 
 function renderWorkout() {
   document.getElementById('workout-list').innerHTML = WORKOUTS.map((w, i) => {
@@ -1395,13 +1440,15 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   document.querySelector('.content').scrollTop = 0;
   if (name === 'weight') renderWeight();
+  if (name === 'workout') initWorkout();
 }
 
 // ── INIT ──
-function renderAll() { renderGrocery(); renderMeals(); renderWorkout(); renderHabits(); }
+function renderAll() { renderGrocery(); renderMeals(); renderHabits(); }
 renderAll();
 updateProgress();
 renderWeight();
+initWorkout();
 </script>
 </body>
 </html>
