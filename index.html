@@ -320,7 +320,52 @@
   }
   .ex-prev span { color: var(--accent3); }
 
-  /* ── HABITS ── */
+  /* ── REST TIMER ── */
+  #rest-timer-overlay {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 2px solid var(--border);
+    padding: 16px 20px calc(16px + env(safe-area-inset-bottom, 0px));
+    display: none; z-index: 999;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
+  }
+  #rest-timer-overlay.visible { display: block; }
+  .timer-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .timer-label { font-size: 10px; letter-spacing: 2px; color: var(--muted); text-transform: uppercase; }
+  .timer-exercise { font-size: 11px; color: var(--text); font-weight: 500; }
+  .timer-skip {
+    font-size: 10px; letter-spacing: 1px; color: var(--muted);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; padding: 4px 10px; cursor: pointer;
+    font-family: 'DM Mono', monospace; text-transform: uppercase;
+  }
+  .timer-skip:active { color: var(--accent2); border-color: var(--accent2); }
+  .timer-bar-wrap {
+    height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin-bottom: 8px;
+  }
+  .timer-bar {
+    height: 100%; border-radius: 3px;
+    background: var(--accent3);
+    transition: width 1s linear, background 0.5s;
+  }
+  .timer-bar.urgent { background: var(--accent2); }
+  .timer-bottom {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .timer-countdown {
+    font-family: 'Bebas Neue', sans-serif; font-size: 32px;
+    color: var(--text); line-height: 1; letter-spacing: 2px;
+  }
+  .timer-countdown.urgent { color: var(--accent2); }
+  .timer-total { font-size: 10px; color: var(--muted); letter-spacing: 1px; }
+  .timer-add {
+    font-size: 11px; color: var(--accent3); background: rgba(10,92,138,0.08);
+    border: 1px solid rgba(10,92,138,0.2); border-radius: 6px;
+    padding: 5px 10px; cursor: pointer; font-family: 'DM Mono', monospace;
+  }
+  .timer-add:active { opacity: 0.7; }
   .habit-item {
     display: flex; align-items: flex-start; gap: 12px;
     padding: 12px 14px; background: var(--card);
@@ -573,7 +618,26 @@
       <button class="reset-btn" onclick="clearWeightHistory()">↺ CLEAR ALL WEIGHT DATA</button>
     </div>
 
+  <!-- ══════════════ REST TIMER OVERLAY ══════════════ -->
+<div id="rest-timer-overlay">
+  <div class="timer-top">
+    <div>
+      <div class="timer-label">REST TIMER</div>
+      <div class="timer-exercise" id="timer-ex-name">—</div>
+    </div>
+    <button class="timer-skip" onclick="skipTimer()">SKIP ✕</button>
   </div>
+  <div class="timer-bar-wrap">
+    <div class="timer-bar" id="timer-bar" style="width:100%"></div>
+  </div>
+  <div class="timer-bottom">
+    <div class="timer-countdown" id="timer-countdown">3:00</div>
+    <div class="timer-total" id="timer-total">/ 3:00</div>
+    <button class="timer-add" onclick="addTime(30)">+30s</button>
+  </div>
+</div>
+
+</div>
 </div>
 
 <script>
@@ -1039,11 +1103,102 @@ async function logSet(dayIdx, exIdx, setIdx) {
   if (btn) { btn.className = `set-log-btn ${nowDone ? 'done' : ''}`; btn.innerHTML = nowDone ? CHECK : ''; btn.style.opacity = '0.5'; }
   [wEl, rEl, pEl].forEach(el => { if(el) el.classList.toggle('logged', nowDone); });
 
+  // start rest timer when marking done
+  if (nowDone) {
+    const w = WORKOUTS[dayIdx];
+    const ex = w && w.exercises[exIdx];
+    if (ex && w.type !== 'cardio') {
+      startRestTimer(ex.name, w.type);
+    }
+  } else {
+    skipTimer();
+  }
+
   await saveSetToSupabase(dayIdx, exIdx, setIdx, data);
   if (btn) btn.style.opacity = '1';
 }
 
-async function initWorkout() {
+// ── REST TIMER ──
+let _timerInterval = null;
+let _timerRemaining = 0;
+let _timerTotal = 0;
+
+// Rest durations per exercise type (seconds)
+// compound = true → power day: 180s, hyper day: 120s
+// compound = false → all days: 90s
+function getRestDuration(dayType, isCompound) {
+  if (!isCompound) return 90;
+  return dayType === 'power' ? 180 : 120;
+}
+
+function isCompoundExercise(exName) {
+  const compounds = [
+    'bench press','pendlay','overhead press','pull-up','squat','deadlift',
+    'leg press','lunge','hip thrust','hack squat','incline','cable row',
+    'chest-supported','ab wheel','plank'
+  ];
+  return compounds.some(c => exName.toLowerCase().includes(c));
+}
+
+function formatTime(sec) {
+  const m = Math.floor(sec / 60);
+  const s = sec % 60;
+  return `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function startRestTimer(exName, dayType) {
+  const compound = isCompoundExercise(exName);
+  const duration = getRestDuration(dayType, compound);
+  clearInterval(_timerInterval);
+  _timerTotal = duration;
+  _timerRemaining = duration;
+
+  document.getElementById('timer-ex-name').textContent = exName;
+  document.getElementById('timer-total').textContent = `/ ${formatTime(duration)}`;
+  document.getElementById('rest-timer-overlay').classList.add('visible');
+  updateTimerUI();
+
+  _timerInterval = setInterval(() => {
+    _timerRemaining--;
+    if (_timerRemaining <= 0) {
+      _timerRemaining = 0;
+      updateTimerUI();
+      clearInterval(_timerInterval);
+      // vibrate if supported
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
+      setTimeout(() => {
+        document.getElementById('rest-timer-overlay').classList.remove('visible');
+      }, 1000);
+    } else {
+      updateTimerUI();
+    }
+  }, 1000);
+}
+
+function updateTimerUI() {
+  const pct = (_timerRemaining / _timerTotal) * 100;
+  const urgent = _timerRemaining <= 10;
+  const cd = document.getElementById('timer-countdown');
+  const bar = document.getElementById('timer-bar');
+  cd.textContent = formatTime(_timerRemaining);
+  cd.className = `timer-countdown${urgent ? ' urgent' : ''}`;
+  bar.style.width = `${pct}%`;
+  bar.className = `timer-bar${urgent ? ' urgent' : ''}`;
+}
+
+function skipTimer() {
+  clearInterval(_timerInterval);
+  document.getElementById('rest-timer-overlay').classList.remove('visible');
+}
+
+function addTime(sec) {
+  _timerRemaining += sec;
+  _timerTotal += sec;
+  document.getElementById('timer-total').textContent = `/ ${formatTime(_timerTotal)}`;
+  updateTimerUI();
+}
+
+
   const status = document.getElementById('workout-sync-status');
   if (status) { status.textContent = '⟳ syncing...'; status.style.color = 'var(--muted)'; }
   await loadWorkoutCache();
