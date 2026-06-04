@@ -618,27 +618,28 @@
       <button class="reset-btn" onclick="clearWeightHistory()">↺ CLEAR ALL WEIGHT DATA</button>
     </div>
 
-  <!-- ══════════════ REST TIMER OVERLAY ══════════════ -->
-<div id="rest-timer-overlay">
-  <div class="timer-top">
-    <div>
-      <div class="timer-label">REST TIMER</div>
-      <div class="timer-exercise" id="timer-ex-name">—</div>
-    </div>
-    <button class="timer-skip" onclick="skipTimer()">SKIP ✕</button>
-  </div>
-  <div class="timer-bar-wrap">
-    <div class="timer-bar" id="timer-bar" style="width:100%"></div>
-  </div>
-  <div class="timer-bottom">
-    <div class="timer-countdown" id="timer-countdown">3:00</div>
-    <div class="timer-total" id="timer-total">/ 3:00</div>
-    <button class="timer-add" onclick="addTime(30)">+30s</button>
-  </div>
-</div>
+  </div><!-- end .content -->
 
-</div>
-</div>
+  <!-- ══════════════ REST TIMER OVERLAY ══════════════ -->
+  <div id="rest-timer-overlay">
+    <div class="timer-top">
+      <div>
+        <div class="timer-label">REST TIMER</div>
+        <div class="timer-exercise" id="timer-ex-name">—</div>
+      </div>
+      <button class="timer-skip" onclick="skipTimer()">SKIP ✕</button>
+    </div>
+    <div class="timer-bar-wrap">
+      <div class="timer-bar" id="timer-bar" style="width:100%"></div>
+    </div>
+    <div class="timer-bottom">
+      <div class="timer-countdown" id="timer-countdown">3:00</div>
+      <div class="timer-total" id="timer-total">/ 3:00</div>
+      <button class="timer-add" onclick="addTime(30)">+30s</button>
+    </div>
+  </div>
+
+</div><!-- end #app -->
 
 <script>
 const CHECK = `<svg class="check-svg" viewBox="0 0 12 12" fill="none">
