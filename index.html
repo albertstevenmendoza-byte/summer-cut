@@ -1199,7 +1199,7 @@ function addTime(sec) {
   updateTimerUI();
 }
 
-
+async function initWorkout() {
   const status = document.getElementById('workout-sync-status');
   if (status) { status.textContent = '⟳ syncing...'; status.style.color = 'var(--muted)'; }
   await loadWorkoutCache();
@@ -1604,7 +1604,7 @@ function renderAll() { renderGrocery(); renderMeals(); renderHabits(); }
 renderAll();
 updateProgress();
 renderWeight();
-initWorkout();
+initWorkout().catch(e => console.warn('initWorkout error:', e));
 </script>
 </body>
 </html>
